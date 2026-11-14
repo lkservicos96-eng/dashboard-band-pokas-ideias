@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico de Sincronização</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:system-ui;max-width:800px;margin:40px auto;padding:20px;background:#0A0C0A;color:#F4F7F4}
+h1{color:#2AE98D;font-size:24px;margin-bottom:30px}
+.test{background:#151815;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:20px;margin-bottom:16px}
+.test h2{font-size:16px;margin:0 0 12px;color:#8C948D}
+.status{font-weight:600;padding:6px 12px;border-radius:6px;display:inline-block;font-size:14px}
+.ok{background:rgba(42,233,141,.15);color:#2AE98D}
+.error{background:rgba(255,122,112,.15);color:#FF7A70}
+pre{background:#0A0C0A;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;color:#8C948D;margin:10px 0 0}
+button{background:#2AE98D;color:#0A0C0A;border:0;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;margin-top:10px}
+button:hover{opacity:.9}
+.loading{color:#8C948D;font-style:italic}
+</style>
+</head>
+<body>
+<h1>🔍 Diagnóstico de Sincronização</h1>
+<div id="results"></div>
+
+<script>
+const SUPABASE_URL = 'https://hcozbvjvtcpycuuynijt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjb3pidmp2dGNweWN1dXluaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODQ5NTgsImV4cCI6MjExMDI2MDk1OH0.czjFozPTsWB63OGCmiV-XHuTvNBmkNxwixJqI4Q-QNg';
+
+const out = document.getElementById('results');
+
+async function test(title, fn) {
+  const div = document.createElement('div');
+  div.className = 'test';
+  div.innerHTML = `<h2>${title}</h2><div class="loading">Testando...</div>`;
+  out.appendChild(div);
+
+  try {
+    const result = await fn();
+    div.innerHTML = `<h2>${title}</h2><span class="status ok">✓ OK</span><pre>${JSON.stringify(result, null, 2)}</pre>`;
+  } catch (e) {
+    div.innerHTML = `<h2>${title}</h2><span class="status error">✗ ERRO</span><pre>${e.message}\n\n${e.stack || ''}</pre>`;
+  }
+}
+
+async function runTests() {
+  // Teste 1: Biblioteca carregou?
+  await test('1. Biblioteca Supabase carregada?', async () => {
+    if (typeof window.supabase === 'undefined') {
+      throw new Error('window.supabase não está definido — a biblioteca não carregou');
+    }
+    return { loaded: true, version: 'supabase-js@2' };
+  });
+
+  // Teste 2: Cliente inicializa?
+  let client;
+  await test('2. Cliente Supabase inicializa?', async () => {
+    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    if (!client) throw new Error('createClient retornou null/undefined');
+    return { connected: true, url: SUPABASE_URL };
+  });
+
+  // Teste 3: Tabela transactions existe?
+  await test('3. Tabela "transactions" existe e é acessível?', async () => {
+    const { data, error } = await client.from('transactions').select('*').limit(1);
+    if (error) throw new Error(`${error.message} (código: ${error.code})`);
+    return { exists: true, rowCount: data.length, sample: data[0] || 'vazia' };
+  });
+
+  // Teste 4: Tabela puxadas existe?
+  await test('4. Tabela "puxadas" existe e é acessível?', async () => {
+    const { data, error } = await client.from('puxadas').select('*').limit(1);
+    if (error) throw new Error(`${error.message} (código: ${error.code})`);
+    return { exists: true, rowCount: data.length, sample: data[0] || 'vazia' };
+  });
+
+  // Teste 5: Consegue inserir?
+  await test('5. Consegue inserir um registro de teste?', async () => {
+    const testId = 'test-' + Date.now();
+    const { data, error } = await client.from('transactions').insert({
+      id: testId,
+      valor: 100,
+      descricao: 'Teste de sincronização',
+      data: new Date().toISOString().split('T')[0],
+      pago: false,
+      percentuais: {},
+      valores: {},
+      observacao: ''
+    }).select();
+
+    if (error) throw new Error(`${error.message} (código: ${error.code})`);
+
+    // Remove o teste
+    await client.from('transactions').delete().eq('id', testId);
+
+    return { inserted: true, testId };
+  });
+
+  // Teste 6: Realtime funciona?
+  await test('6. Realtime (escuta de mudanças) funciona?', async () => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout: realtime não respondeu em 5s'));
+      }, 5000);
+
+      const channel = client.channel('test-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {})
+        .subscribe((status) => {
+          clearTimeout(timeout);
+          if (status === 'SUBSCRIBED') {
+            channel.unsubscribe();
+            resolve({ realtime: true, status });
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            reject(new Error(`Realtime falhou: ${status}`));
+          }
+        });
+    });
+  });
+
+  // Resumo final
+  const final = document.createElement('div');
+  final.className = 'test';
+  final.innerHTML = `
+    <h2>✅ Todos os testes passaram!</h2>
+    <p style="color:#8C948D;margin:10px 0 0">O Supabase está configurado corretamente. Se os dados ainda não estão sincronizando entre PC e celular, o problema pode ser:</p>
+    <ul style="color:#8C948D;line-height:1.6">
+      <li>O app não está chamando o código de sincronização quando você adiciona valores</li>
+      <li>Há algum erro silencioso no console que está impedindo a sincronização</li>
+      <li>O celular não está recarregando/reconectando após você adicionar no PC</li>
+    </ul>
+    <button onclick="window.location.href='index.html'">← Voltar pro app</button>
+  `;
+  out.appendChild(final);
+}
+
+runTests().catch(e => {
+  out.innerHTML += `<div class="test"><h2>Erro geral</h2><span class="status error">✗</span><pre>${e.message}</pre></div>`;
+});
+</script>
+</body>
+</html>
