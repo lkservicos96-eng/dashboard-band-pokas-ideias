@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   color-scheme: dark;
@@ -1210,6 +1211,171 @@ var histFilter='tudo';
 var histFrom='';
 var histTo='';
 
+/* ---------- Supabase ---------- */
+var supabase=null;
+var syncEnabled=false;
+var lastSync=null;
+
+function initSupabase(){
+  if(typeof window.supabase==='undefined')return;
+  try{
+    supabase=window.supabase.createClient(
+      'https://hcozbvjvtcpycuuynijt.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjb3pidmp2dGNweWN1dXluaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODQ5NTgsImV4cCI6MjExMDI2MDk1OH0.czjFozPTsWB63OGCmiV-XHuTvNBmkNxwixJqI4Q-QNg'
+    );
+    syncEnabled=true;
+    setupRealtimeSync();
+  }catch(e){
+    if(window.console)console.error('Falha ao inicializar Supabase:',e);
+  }
+}
+
+function setupRealtimeSync(){
+  if(!supabase)return;
+
+  /* escuta mudanças em transactions */
+  supabase.channel('transactions-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'transactions'},function(payload){
+      if(payload.eventType==='INSERT'||payload.eventType==='UPDATE'){
+        var newTx=payload.new;
+        var idx=transactions.findIndex(function(t){return String(t.id)===String(newTx.id);});
+        if(idx>=0){
+          transactions[idx]=normalizeTx(newTx);
+        }else{
+          transactions.push(normalizeTx(newTx));
+        }
+        store.save();
+        renderAll();
+      }else if(payload.eventType==='DELETE'){
+        transactions=transactions.filter(function(t){return String(t.id)!==String(payload.old.id);});
+        store.save();
+        renderAll();
+      }
+    })
+    .subscribe();
+
+  /* escuta mudanças em puxadas */
+  supabase.channel('puxadas-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'puxadas'},function(payload){
+      if(payload.eventType==='INSERT'||payload.eventType==='UPDATE'){
+        var newPux=payload.new;
+        var idx=puxEntries.findIndex(function(p){return String(p.id)===String(newPux.id);});
+        if(idx>=0){
+          puxEntries[idx]=newPux;
+        }else{
+          puxEntries.push(newPux);
+        }
+        puxSave();
+        renderPux();
+      }else if(payload.eventType==='DELETE'){
+        puxEntries=puxEntries.filter(function(p){return String(p.id)!==String(payload.old.id);});
+        puxSave();
+        renderPux();
+      }
+    })
+    .subscribe();
+
+  /* sincroniza dados locais para o servidor na primeira carga */
+  syncToServer();
+}
+
+function normalizeTx(raw){
+  return {
+    id:raw.id,
+    valor:Number(raw.valor)||0,
+    descricao:raw.descricao||'',
+    data:raw.data||'',
+    pago:!!raw.pago,
+    percentuais:raw.percentuais||{},
+    valores:raw.valores||{},
+    observacao:raw.observacao||''
+  };
+}
+
+async function syncToServer(){
+  if(!supabase||!syncEnabled)return;
+  try{
+    /* busca dados do servidor */
+    var txRes=await supabase.from('transactions').select('*');
+    var puxRes=await supabase.from('puxadas').select('*');
+
+    var serverTx=txRes.data||[];
+    var serverPux=puxRes.data||[];
+
+    /* mescla: se o servidor tem dados mais recentes, usa eles; senão, envia os locais */
+    if(serverTx.length>0){
+      var merged=[];
+      var serverIds={};
+      serverTx.forEach(function(t){
+        serverIds[t.id]=true;
+        merged.push(normalizeTx(t));
+      });
+      transactions.forEach(function(t){
+        if(!serverIds[t.id]){
+          /* envia transação local que não existe no servidor */
+          supabase.from('transactions').insert({
+            id:t.id,
+            valor:t.valor,
+            descricao:t.descricao,
+            data:t.data,
+            pago:t.pago,
+            percentuais:t.percentuais,
+            valores:t.valores,
+            observacao:t.observacao
+          });
+          merged.push(t);
+        }
+      });
+      transactions=merged;
+      store.save();
+    }else{
+      /* servidor vazio, envia tudo do local */
+      if(transactions.length>0){
+        var batch=transactions.map(function(t){
+          return {
+            id:t.id,
+            valor:t.valor,
+            descricao:t.descricao,
+            data:t.data,
+            pago:t.pago,
+            percentuais:t.percentuais,
+            valores:t.valores,
+            observacao:t.observacao
+          };
+        });
+        supabase.from('transactions').insert(batch);
+      }
+    }
+
+    /* mesmo processo para puxadas */
+    if(serverPux.length>0){
+      var mergedPux=[];
+      var serverPuxIds={};
+      serverPux.forEach(function(p){
+        serverPuxIds[p.id]=true;
+        mergedPux.push(p);
+      });
+      puxEntries.forEach(function(p){
+        if(!serverPuxIds[p.id]){
+          supabase.from('puxadas').insert(p);
+          mergedPux.push(p);
+        }
+      });
+      puxEntries=mergedPux;
+      puxSave();
+    }else{
+      if(puxEntries.length>0){
+        supabase.from('puxadas').insert(puxEntries);
+      }
+    }
+
+    renderAll();
+    renderPux();
+  }catch(e){
+    if(window.console)console.error('Erro ao sincronizar:',e);
+  }
+}
+
 function $(id){return document.getElementById(id);}
 function pad(n){return String(n).padStart(2,'0');}
 function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
@@ -1268,6 +1434,21 @@ var store={
         }catch(e){}
       }
       localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
+      /* sincroniza com Supabase após salvar localmente */
+      if(syncEnabled&&supabase){
+        transactions.forEach(function(t){
+          supabase.from('transactions').upsert({
+            id:t.id,
+            valor:t.valor,
+            descricao:t.descricao,
+            data:t.data,
+            pago:t.pago,
+            percentuais:t.percentuais,
+            valores:t.valores,
+            observacao:t.observacao
+          },{onConflict:'id'});
+        });
+      }
     }catch(e){}
   }
 };
@@ -1928,7 +2109,15 @@ function puxLoad(){
   }catch(e){return [];}
 }
 function puxSave(){
-  try{localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));}catch(e){}
+  try{
+    localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
+    /* sincroniza com Supabase após salvar localmente */
+    if(syncEnabled&&supabase){
+      puxEntries.forEach(function(p){
+        supabase.from('puxadas').upsert(p,{onConflict:'id'});
+      });
+    }
+  }catch(e){}
 }
 function puxWeekKey(d){return iso(mondayOf(d));}
 function puxMonthKey(d){return d.getFullYear()+'-'+pad(d.getMonth()+1);}
@@ -2185,18 +2374,20 @@ $('modeSeg').addEventListener('click',function(e){
   updateCharts();
 });
 
-/* ---------- navegação mobile ---------- */
+/* ---------- navegação mobile: agora rola até a seção (nada fica escondido) ---------- */
 Array.prototype.forEach.call(document.querySelectorAll('.bottomnav [data-nav]'),function(b){
   b.addEventListener('click',function(){
     var v=b.dataset.nav;
-    document.body.dataset.view=v;
-    Array.prototype.forEach.call(document.querySelectorAll('.bottomnav [data-nav]'),function(x){
-      if(x.classList.contains('nav-btn'))x.classList.toggle('active',x.dataset.nav===v);
-    });
-    if(v==='form'){
-      setTimeout(function(){valorInput.focus({preventScroll:true});},280);
+    var alvo=v==='form'?document.querySelector('.panel.form'):
+             v==='hist'?document.querySelector('.hist-in-form'):
+             document.querySelector('.panel.hero');
+    if(alvo){
+      var y=alvo.getBoundingClientRect().top+window.pageYOffset-70;
+      window.scrollTo({top:y,behavior:'smooth'});
     }
-    window.scrollTo({top:0,behavior:'smooth'});
+    if(v==='form'){
+      setTimeout(function(){valorInput.focus({preventScroll:true});},420);
+    }
   });
 });
 
@@ -2315,6 +2506,10 @@ function init(){
 
   transactions=normalize(store.load());
   puxEntries=puxLoad();
+
+  /* inicializa Supabase para sincronização automática */
+  initSupabase();
+
   initCharts();
   updatePercPreview();
   renderPux();
