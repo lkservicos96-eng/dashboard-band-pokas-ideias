@@ -1302,48 +1302,76 @@ async function syncToServer(){
     var serverTx=txRes.data||[];
     var serverPux=puxRes.data||[];
 
-    /* se o servidor tem dados, usa ele como fonte da verdade */
-    if(serverTx.length>0){
-      transactions=serverTx.map(function(t){return normalizeTx(t);});
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
-    }else{
-      /* servidor vazio, envia tudo do local */
-      if(transactions.length>0){
-        var batch=transactions.map(function(t){
-          return {
-            id:String(t.id),
-            valor:t.valor,
-            descricao:t.descricao,
-            data:t.data,
-            pago:t.pago,
-            percentuais:t.percentuais,
-            valores:t.valores,
-            observacao:t.observacao
-          };
+    /* MESCLA INTELIGENTE: combina local + servidor, sem perder nada */
+    var localIds={};
+    var merged=[];
+
+    /* adiciona todos os locais primeiro */
+    transactions.forEach(function(t){
+      localIds[String(t.id)]=true;
+      merged.push(t);
+    });
+
+    /* adiciona do servidor o que NÃO está no local */
+    serverTx.forEach(function(t){
+      if(!localIds[String(t.id)]){
+        merged.push(normalizeTx(t));
+      }
+    });
+
+    /* envia pro servidor os locais que não estão lá */
+    for(var i=0;i<transactions.length;i++){
+      var t=transactions[i];
+      var existsOnServer=serverTx.some(function(st){return String(st.id)===String(t.id);});
+      if(!existsOnServer){
+        var res=await supabase.from('transactions').insert({
+          id:String(t.id),
+          valor:t.valor,
+          descricao:t.descricao,
+          data:t.data,
+          pago:t.pago,
+          percentuais:t.percentuais,
+          valores:t.valores,
+          observacao:t.observacao
         });
-        var batchRes=await supabase.from('transactions').insert(batch);
-        if(batchRes.error&&window.console)console.error('Erro ao enviar lançamentos:',batchRes.error);
+        if(res.error&&window.console)console.error('Erro ao inserir transação:',res.error);
       }
     }
 
+    transactions=merged;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
+
     /* mesmo processo para puxadas */
-    if(serverPux.length>0){
-      puxEntries=serverPux;
-      localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
-    }else{
-      if(puxEntries.length>0){
-        var puxBatch=puxEntries.map(function(p){
-          return {
-            id:String(p.id),
-            pessoa:p.pessoa,
-            valor:p.valor,
-            semana:p.semana
-          };
+    var localPuxIds={};
+    var mergedPux=[];
+
+    puxEntries.forEach(function(p){
+      localPuxIds[String(p.id)]=true;
+      mergedPux.push(p);
+    });
+
+    serverPux.forEach(function(p){
+      if(!localPuxIds[String(p.id)]){
+        mergedPux.push(p);
+      }
+    });
+
+    for(var j=0;j<puxEntries.length;j++){
+      var p=puxEntries[j];
+      var existsOnServerPux=serverPux.some(function(sp){return String(sp.id)===String(p.id);});
+      if(!existsOnServerPux){
+        var puxRes2=await supabase.from('puxadas').insert({
+          id:String(p.id),
+          pessoa:p.pessoa,
+          valor:p.valor,
+          semana:p.semana
         });
-        var puxBatchRes=await supabase.from('puxadas').insert(puxBatch);
-        if(puxBatchRes.error&&window.console)console.error('Erro ao enviar puxadas:',puxBatchRes.error);
+        if(puxRes2.error&&window.console)console.error('Erro ao inserir puxada:',puxRes2.error);
       }
     }
+
+    puxEntries=mergedPux;
+    localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
 
     renderAll();
     renderPux();
