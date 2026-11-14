@@ -1310,10 +1310,11 @@ async function syncToServer(){
         serverIds[t.id]=true;
         merged.push(normalizeTx(t));
       });
-      transactions.forEach(function(t){
+      for(var i=0;i<transactions.length;i++){
+        var t=transactions[i];
         if(!serverIds[t.id]){
           /* envia transação local que não existe no servidor */
-          supabase.from('transactions').insert({
+          var res=await supabase.from('transactions').insert({
             id:t.id,
             valor:t.valor,
             descricao:t.descricao,
@@ -1323,17 +1324,18 @@ async function syncToServer(){
             valores:t.valores,
             observacao:t.observacao
           });
+          if(res.error&&window.console)console.error('Erro ao inserir transação:',res.error);
           merged.push(t);
         }
-      });
+      }
       transactions=merged;
-      store.save();
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
     }else{
       /* servidor vazio, envia tudo do local */
       if(transactions.length>0){
         var batch=transactions.map(function(t){
           return {
-            id:t.id,
+            id:String(t.id),
             valor:t.valor,
             descricao:t.descricao,
             data:t.data,
@@ -1343,7 +1345,8 @@ async function syncToServer(){
             observacao:t.observacao
           };
         });
-        supabase.from('transactions').insert(batch);
+        var batchRes=await supabase.from('transactions').insert(batch);
+        if(batchRes.error&&window.console)console.error('Erro ao enviar lançamentos:',batchRes.error);
       }
     }
 
@@ -1355,17 +1358,28 @@ async function syncToServer(){
         serverPuxIds[p.id]=true;
         mergedPux.push(p);
       });
-      puxEntries.forEach(function(p){
+      for(var j=0;j<puxEntries.length;j++){
+        var p=puxEntries[j];
         if(!serverPuxIds[p.id]){
-          supabase.from('puxadas').insert(p);
+          var puxRes2=await supabase.from('puxadas').insert(p);
+          if(puxRes2.error&&window.console)console.error('Erro ao inserir puxada:',puxRes2.error);
           mergedPux.push(p);
         }
-      });
+      }
       puxEntries=mergedPux;
-      puxSave();
+      localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
     }else{
       if(puxEntries.length>0){
-        supabase.from('puxadas').insert(puxEntries);
+        var puxBatch=puxEntries.map(function(p){
+          return {
+            id:String(p.id),
+            pessoa:p.pessoa,
+            valor:p.valor,
+            semana:p.semana
+          };
+        });
+        var puxBatchRes=await supabase.from('puxadas').insert(puxBatch);
+        if(puxBatchRes.error&&window.console)console.error('Erro ao enviar puxadas:',puxBatchRes.error);
       }
     }
 
