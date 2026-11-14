@@ -1244,11 +1244,11 @@ function setupRealtimeSync(){
         }else{
           transactions.push(normalizeTx(newTx));
         }
-        store.save();
+        store.saveLocal();
         renderAll();
       }else if(payload.eventType==='DELETE'){
         transactions=transactions.filter(function(t){return String(t.id)!==String(payload.old.id);});
-        store.save();
+        store.saveLocal();
         renderAll();
       }
     })
@@ -1265,11 +1265,11 @@ function setupRealtimeSync(){
         }else{
           puxEntries.push(newPux);
         }
-        puxSave();
+        puxSaveLocal();
         renderPux();
       }else if(payload.eventType==='DELETE'){
         puxEntries=puxEntries.filter(function(p){return String(p.id)!==String(payload.old.id);});
-        puxSave();
+        puxSaveLocal();
         renderPux();
       }
     })
@@ -1437,6 +1437,19 @@ var store={
       return Array.isArray(arr)?arr:[];
     }catch(e){return [];}
   },
+  saveLocal:function(){
+    /* salva só no localStorage, sem enviar pro Supabase */
+    try{
+      var prev=localStorage.getItem(STORAGE_KEY);
+      if(prev){
+        try{
+          var pv=JSON.parse(prev);
+          if(Array.isArray(pv)&&pv.length)localStorage.setItem(BACKUP_KEY,prev);
+        }catch(e){}
+      }
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
+    }catch(e){}
+  },
   save:function(){
     try{
       /* guarda o último estado com lançamentos antes de sobrescrever */
@@ -1452,6 +1465,20 @@ var store={
       if(syncEnabled&&supabase){
         transactions.forEach(function(t){
           supabase.from('transactions').upsert({
+            id:String(t.id),
+            valor:t.valor,
+            descricao:t.descricao,
+            data:t.data,
+            pago:t.pago,
+            percentuais:t.percentuais,
+            valores:t.valores,
+            observacao:t.observacao
+          },{onConflict:'id'});
+        });
+      }
+    }catch(e){}
+  }
+};
             id:t.id,
             valor:t.valor,
             descricao:t.descricao,
@@ -2050,6 +2077,10 @@ $('txList').addEventListener('click',function(e){
   if(confirm('Excluir esta entrada?')){
     transactions=transactions.filter(function(t){return String(t.id)!==String(id);});
     store.save();
+    /* envia DELETE pro Supabase */
+    if(syncEnabled&&supabase){
+      supabase.from('transactions').delete().eq('id',String(id));
+    }
     renderAll();
     toast('Entrada excluída');
   }
@@ -2122,13 +2153,24 @@ function puxLoad(){
     return Array.isArray(arr)?arr:[];
   }catch(e){return [];}
 }
+function puxSaveLocal(){
+  /* salva só no localStorage, sem enviar pro Supabase */
+  try{
+    localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
+  }catch(e){}
+}
 function puxSave(){
   try{
     localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
     /* sincroniza com Supabase após salvar localmente */
     if(syncEnabled&&supabase){
       puxEntries.forEach(function(p){
-        supabase.from('puxadas').upsert(p,{onConflict:'id'});
+        supabase.from('puxadas').upsert({
+          id:String(p.id),
+          pessoa:p.pessoa,
+          valor:p.valor,
+          semana:p.semana
+        },{onConflict:'id'});
       });
     }
   }catch(e){}
