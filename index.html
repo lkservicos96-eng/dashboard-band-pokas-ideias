@@ -1302,33 +1302,9 @@ async function syncToServer(){
     var serverTx=txRes.data||[];
     var serverPux=puxRes.data||[];
 
-    /* mescla: se o servidor tem dados mais recentes, usa eles; senão, envia os locais */
+    /* se o servidor tem dados, usa ele como fonte da verdade */
     if(serverTx.length>0){
-      var merged=[];
-      var serverIds={};
-      serverTx.forEach(function(t){
-        serverIds[t.id]=true;
-        merged.push(normalizeTx(t));
-      });
-      for(var i=0;i<transactions.length;i++){
-        var t=transactions[i];
-        if(!serverIds[t.id]){
-          /* envia transação local que não existe no servidor */
-          var res=await supabase.from('transactions').insert({
-            id:t.id,
-            valor:t.valor,
-            descricao:t.descricao,
-            data:t.data,
-            pago:t.pago,
-            percentuais:t.percentuais,
-            valores:t.valores,
-            observacao:t.observacao
-          });
-          if(res.error&&window.console)console.error('Erro ao inserir transação:',res.error);
-          merged.push(t);
-        }
-      }
-      transactions=merged;
+      transactions=serverTx.map(function(t){return normalizeTx(t);});
       localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions));
     }else{
       /* servidor vazio, envia tudo do local */
@@ -1352,21 +1328,7 @@ async function syncToServer(){
 
     /* mesmo processo para puxadas */
     if(serverPux.length>0){
-      var mergedPux=[];
-      var serverPuxIds={};
-      serverPux.forEach(function(p){
-        serverPuxIds[p.id]=true;
-        mergedPux.push(p);
-      });
-      for(var j=0;j<puxEntries.length;j++){
-        var p=puxEntries[j];
-        if(!serverPuxIds[p.id]){
-          var puxRes2=await supabase.from('puxadas').insert(p);
-          if(puxRes2.error&&window.console)console.error('Erro ao inserir puxada:',puxRes2.error);
-          mergedPux.push(p);
-        }
-      }
-      puxEntries=mergedPux;
+      puxEntries=serverPux;
       localStorage.setItem(PUX_KEY,JSON.stringify(puxEntries));
     }else{
       if(puxEntries.length>0){
