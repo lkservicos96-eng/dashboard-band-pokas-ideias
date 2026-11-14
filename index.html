@@ -1479,20 +1479,6 @@ var store={
     }catch(e){}
   }
 };
-            id:t.id,
-            valor:t.valor,
-            descricao:t.descricao,
-            data:t.data,
-            pago:t.pago,
-            percentuais:t.percentuais,
-            valores:t.valores,
-            observacao:t.observacao
-          },{onConflict:'id'});
-        });
-      }
-    }catch(e){}
-  }
-};
 
 function loadPrivacy(){
   try{privacy=localStorage.getItem('caixa-privacy')==='1';}catch(e){}
