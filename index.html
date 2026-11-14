@@ -2062,10 +2062,12 @@ $('txList').addEventListener('click',function(e){
   var id=btn.dataset.id;
   if(confirm('Excluir esta entrada?')){
     transactions=transactions.filter(function(t){return String(t.id)!==String(id);});
-    store.save();
+    store.saveLocal();
     /* envia DELETE pro Supabase */
     if(syncEnabled&&supabase){
-      supabase.from('transactions').delete().eq('id',String(id));
+      supabase.from('transactions').delete().eq('id',String(id)).then(function(res){
+        if(res.error&&window.console)console.error('Erro ao excluir no Supabase:',res.error);
+      });
     }
     renderAll();
     toast('Entrada excluída');
