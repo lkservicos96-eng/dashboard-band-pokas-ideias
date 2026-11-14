@@ -775,6 +775,116 @@ input:focus-visible,select:focus-visible{outline:none}
     </div>
   </section>
 
+  <!-- FORM: NOVA ENTRADA -->
+  <section class="card panel form" data-panel="form">
+    <div class="card-head">
+      <h2>Nova entrada</h2>
+    </div>
+    <form id="txForm" novalidate>
+      <label class="field-label" for="valor">Valor bruto</label>
+      <div class="amount-wrap">
+        <span class="currency">R$</span>
+        <input id="valor" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
+      </div>
+      <div class="quick-chips">
+        <button type="button" class="chip" data-add="1000">+1.000</button>
+        <button type="button" class="chip" data-add="5000">+5.000</button>
+        <button type="button" class="chip" data-add="10000">+10.000</button>
+        <button type="button" class="chip" data-add="20000">+20.000</button>
+        <button type="button" class="chip" data-add="50000">+50.000</button>
+        <button type="button" class="chip" data-add="100000">+100.000</button>
+      </div>
+
+      <label class="field-label" for="descricao">Descrição</label>
+      <input class="field-input" id="descricao" type="text" placeholder="Quem está no resumo do dinheiro?" autocomplete="off" required>
+
+      <label class="field-label" for="data">Data</label>
+      <input class="field-input" id="data" type="date" required>
+
+      <label class="field-label" for="observacao">Observação (opcional)</label>
+      <textarea class="field-input" id="observacao" maxlength="280" rows="2" placeholder="Adicione uma observação" style="resize:vertical;min-height:70px"></textarea>
+
+      <div class="perc-single">
+        <span class="dot" style="--c:#E4C98C"></span>
+        <span class="perc-name">TRIPEIRO</span>
+        <input type="number" id="percTripeiro" value="30" min="0" max="100" step="0.5" inputmode="decimal" aria-label="Percentual do Tripeiro">
+        <span class="perc-suffix">%</span>
+      </div>
+      <div class="perc-chips">
+        <button type="button" class="chip" data-pct="10">10%</button>
+        <button type="button" class="chip" data-pct="20">20%</button>
+        <button type="button" class="chip" data-pct="25">25%</button>
+        <button type="button" class="chip" data-pct="30">30%</button>
+        <button type="button" class="chip" data-pct="35">35%</button>
+        <button type="button" class="chip" data-pct="40">40%</button>
+        <button type="button" class="chip" data-pct="45">45%</button>
+        <button type="button" class="chip" data-pct="50">50%</button>
+      </div>
+
+      <div class="preview-rows">
+        <div class="preview-row">
+          <span class="dot" style="--c:#E4C98C"></span>
+          <span class="pv-name">TRIPEIRO</span>
+          <span class="pv-val num" id="valTripeiro">R$ 0,00</span>
+        </div>
+        <div class="preview-row">
+          <span class="dot" style="--c:#2AE98D"></span>
+          <span class="pv-name">BAND</span>
+          <span class="pv-val num" id="valBAND">R$ 0,00</span>
+        </div>
+        <div class="preview-row">
+          <span class="dot" style="--c:#3ED6DC"></span>
+          <span class="pv-name">KM</span>
+          <span class="pv-val num" id="valKM">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div class="form-error" id="formError" hidden>Informe uma percentagem entre 0 e 100.</div>
+      <button type="submit" class="submit-btn">Adicionar entrada</button>
+    </form>
+
+    <!-- HISTÓRICO -->
+    <div class="hist-in-form">
+      <div class="card-head">
+        <h2>Histórico</h2>
+        <div class="hist-head-right">
+          <span class="card-sub" id="histCount">0 LANÇAMENTOS</span>
+          <button type="button" class="eye-btn" id="exportBtn" aria-label="Exportar lançamentos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <label class="eye-btn" aria-label="Importar lançamentos" title="Importar JSON">
+            <input type="file" id="importFile" accept=".json" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="17"/></svg>
+          </label>
+        </div>
+      </div>
+      <div class="hist-filters">
+        <div class="filter-chips">
+          <button type="button" class="chip active" data-filter="tudo">Tudo</button>
+          <button type="button" class="chip" data-filter="hoje">Hoje</button>
+          <button type="button" class="chip" data-filter="7dias">7 dias</button>
+          <button type="button" class="chip" data-filter="mes">Este mês</button>
+          <button type="button" class="chip" data-filter="custom">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10h18M8 6V3M16 6V3"/></svg>
+            Datas
+            <span class="chip-x" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </span>
+          </button>
+        </div>
+        <div class="hist-range" id="histRange">
+          <label for="histFrom">De</label>
+          <input type="date" id="histFrom">
+          <span class="range-sep">–</span>
+          <label for="histTo">Até</label>
+          <input type="date" id="histTo">
+        </div>
+      </div>
+      <div class="hist-summary" id="histSummary" hidden></div>
+      <div class="tx-list" id="txList"></div>
+    </div>
+  </section>
+
   <!-- SPLIT + DISTRIBUIÇÃO -->
   <section class="card panel split" data-panel="resumo">
     <div class="card-head">
@@ -990,116 +1100,6 @@ input:focus-visible,select:focus-visible{outline:none}
         </div>
       </div>
       <div class="pux-rows" id="puxRows"></div>
-    </div>
-  </section>
-
-  <!-- FORM -->
-  <section class="card panel form" data-panel="form">
-    <div class="card-head">
-      <h2>Nova entrada</h2>
-    </div>
-    <form id="txForm" novalidate>
-      <label class="field-label" for="valor">Valor bruto</label>
-      <div class="amount-wrap">
-        <span class="currency">R$</span>
-        <input id="valor" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
-      </div>
-      <div class="quick-chips">
-        <button type="button" class="chip" data-add="1000">+1.000</button>
-        <button type="button" class="chip" data-add="5000">+5.000</button>
-        <button type="button" class="chip" data-add="10000">+10.000</button>
-        <button type="button" class="chip" data-add="20000">+20.000</button>
-        <button type="button" class="chip" data-add="50000">+50.000</button>
-        <button type="button" class="chip" data-add="100000">+100.000</button>
-      </div>
-
-      <label class="field-label" for="descricao">Descrição</label>
-      <input class="field-input" id="descricao" type="text" placeholder="Quem está no resumo do dinheiro?" autocomplete="off" required>
-
-      <label class="field-label" for="data">Data</label>
-      <input class="field-input" id="data" type="date" required>
-
-      <label class="field-label" for="observacao">Observação (opcional)</label>
-      <textarea class="field-input" id="observacao" maxlength="280" rows="2" placeholder="Adicione uma observação" style="resize:vertical;min-height:70px"></textarea>
-
-      <div class="perc-single">
-        <span class="dot" style="--c:#E4C98C"></span>
-        <span class="perc-name">TRIPEIRO</span>
-        <input type="number" id="percTripeiro" value="30" min="0" max="100" step="0.5" inputmode="decimal" aria-label="Percentual do Tripeiro">
-        <span class="perc-suffix">%</span>
-      </div>
-      <div class="perc-chips">
-        <button type="button" class="chip" data-pct="10">10%</button>
-        <button type="button" class="chip" data-pct="20">20%</button>
-        <button type="button" class="chip" data-pct="25">25%</button>
-        <button type="button" class="chip" data-pct="30">30%</button>
-        <button type="button" class="chip" data-pct="35">35%</button>
-        <button type="button" class="chip" data-pct="40">40%</button>
-        <button type="button" class="chip" data-pct="45">45%</button>
-        <button type="button" class="chip" data-pct="50">50%</button>
-      </div>
-
-      <div class="preview-rows">
-        <div class="preview-row">
-          <span class="dot" style="--c:#E4C98C"></span>
-          <span class="pv-name">TRIPEIRO</span>
-          <span class="pv-val num" id="valTripeiro">R$ 0,00</span>
-        </div>
-        <div class="preview-row">
-          <span class="dot" style="--c:#2AE98D"></span>
-          <span class="pv-name">BAND</span>
-          <span class="pv-val num" id="valBAND">R$ 0,00</span>
-        </div>
-        <div class="preview-row">
-          <span class="dot" style="--c:#3ED6DC"></span>
-          <span class="pv-name">KM</span>
-          <span class="pv-val num" id="valKM">R$ 0,00</span>
-        </div>
-      </div>
-
-      <div class="form-error" id="formError" hidden>Informe uma percentagem entre 0 e 100.</div>
-      <button type="submit" class="submit-btn">Adicionar entrada</button>
-    </form>
-
-    <!-- HISTÓRICO -->
-    <div class="hist-in-form">
-      <div class="card-head">
-        <h2>Histórico</h2>
-        <div class="hist-head-right">
-          <span class="card-sub" id="histCount">0 LANÇAMENTOS</span>
-          <button type="button" class="eye-btn" id="exportBtn" aria-label="Exportar lançamentos">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          </button>
-          <label class="eye-btn" aria-label="Importar lançamentos" title="Importar JSON">
-            <input type="file" id="importFile" accept=".json" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="17"/></svg>
-          </label>
-        </div>
-      </div>
-      <div class="hist-filters">
-        <div class="filter-chips">
-          <button type="button" class="chip active" data-filter="tudo">Tudo</button>
-          <button type="button" class="chip" data-filter="hoje">Hoje</button>
-          <button type="button" class="chip" data-filter="7dias">7 dias</button>
-          <button type="button" class="chip" data-filter="mes">Este mês</button>
-          <button type="button" class="chip" data-filter="custom">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10h18M8 6V3M16 6V3"/></svg>
-            Datas
-            <span class="chip-x" hidden>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-            </span>
-          </button>
-        </div>
-        <div class="hist-range" id="histRange">
-          <label for="histFrom">De</label>
-          <input type="date" id="histFrom">
-          <span class="range-sep">–</span>
-          <label for="histTo">Até</label>
-          <input type="date" id="histTo">
-        </div>
-      </div>
-      <div class="hist-summary" id="histSummary" hidden></div>
-      <div class="tx-list" id="txList"></div>
     </div>
   </section>
 
