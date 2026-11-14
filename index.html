@@ -112,24 +112,26 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .card-sub{font:500 12px var(--font-ui);color:var(--text-3)}
 #splitSub{text-transform:uppercase;letter-spacing:.6px;font-weight:600}
 
+/* layout 2 colunas em todas as telas (incluindo celular) */
+.grid{
+  grid-template-columns:1.15fr .85fr;
+  grid-template-areas:
+    "hero hero"
+    "form split"
+    "hist hist"
+    "charts charts";
+}
+.hero{grid-area:hero}
+.chart-main{grid-area:charts}
+.split{grid-area:split}
+.form{grid-area:form}
+.history{grid-area:hist}
+
 @media(min-width:980px){
-  .grid{
-    grid-template-columns:1.15fr .85fr;
-    grid-template-areas:
-      "hero hero"
-      "form split"
-      "hist hist"
-      "charts charts";
-  }
-  .hero{grid-area:hero}
-  .chart-main{grid-area:charts}
-  .split{grid-area:split}
-  .form{grid-area:form}
-  .history{grid-area:hist}
   .bottomnav{display:none}
 }
 @media(max-width:979px){
-  /* no celular tudo fica empilhado, igual ao desktop — nada escondido em abas */
+  /* no celular mantém 2 colunas, igual ao PC */
   .panel{display:block}
   .bottomnav{display:grid}
   main.container{padding-bottom:122px}
@@ -155,6 +157,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(max-width:600px){
   .hero-side{align-items:flex-start;width:100%}
   .spark-wrap{width:100%}
+  /* compactação para celular com 2 colunas */
+  .card{padding:14px}
+  .hero{padding:18px}
+  #valor{font-size:22px}
+  .container{padding:16px 12px 44px}
 }
 
 /* ---------- segmented ---------- */
