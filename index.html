@@ -128,12 +128,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .bottomnav{display:none}
 }
 @media(max-width:979px){
-  .panel{display:none}
-  body[data-view="resumo"] .panel[data-panel="resumo"],
-  body[data-view="form"] .panel[data-panel="form"],
-  body[data-view="hist"] .panel[data-panel="hist"]{display:block}
+  /* no celular tudo fica empilhado, igual ao desktop — nada escondido em abas */
+  .panel{display:block}
   .bottomnav{display:grid}
-  main.container{padding-bottom:116px}
+  main.container{padding-bottom:122px}
 }
 
 /* ---------- hero ---------- */
